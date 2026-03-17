@@ -138,19 +138,21 @@ if user_input := st.chat_input("请输入你的问题..."):
 
     # 2. 调用LLM生成回复（流式输出）
     with st.chat_message("assistant"):
-        # 占位符：实时更新回复内容
-        msg_placeholder = st.empty()
-        # full_response = "你好呀：" + user_input
-        full_response = ""
-        
-        # 流式调用LLM
-        for chunk in st.session_state.llm.stream([HumanMessage(content=user_input)]):
-            full_response += chunk.content
-            # 实时更新（加光标动画）
-            msg_placeholder.markdown(full_response + "▌")
-        
-        # 移除光标，显示最终回复
-        msg_placeholder.markdown(full_response)
-        
-        # 3. 添加AI回复到历史
-        st.session_state.messages.append(AIMessage(content=full_response))
+
+        with st.status("正在思考...", expanded=True) as status:
+            # 占位符：实时更新回复内容
+            msg_placeholder = st.empty()
+            # full_response = "你好呀：" + user_input
+            full_response = ""
+            
+            # 流式调用LLM
+            for chunk in st.session_state.llm.stream([HumanMessage(content=user_input)]):
+                full_response += chunk.content
+                # 实时更新（加光标动画）
+                msg_placeholder.markdown(full_response + "▌")
+            
+            # 移除光标，显示最终回复
+            msg_placeholder.markdown(full_response)
+            
+            # 3. 添加AI回复到历史
+            st.session_state.messages.append(AIMessage(content=full_response))
