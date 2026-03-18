@@ -4,6 +4,11 @@ import requests
 # from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_ollama import ChatOllama
+
+
+from src.agents.smart_agent import agent,create_my_agent
+import json
+
 # 加载环境变量（存放OpenAI API Key）
 # load_dotenv()
 # 页面配置
@@ -43,6 +48,12 @@ if "llm" not in st.session_state:
     st.session_state.llm = ChatOllama(
         model=st.session_state.selected_model,
         base_url=st.session_state.base_url
+    )
+
+if "agent" not in st.session_state:
+    st.session_state.agent = create_my_agent(
+        base_url=st.session_state.base_url,
+        model=st.session_state.selected_model
     )
 
 # ---------------------- 2. 侧边栏配置 ----------------------
@@ -92,6 +103,10 @@ with st.sidebar:
             st.session_state.llm = ChatOllama(
                 model=st.session_state.selected_model,
                 base_url=st.session_state.base_url
+            )
+            st.session_state.agent = create_my_agent(
+                base_url=st.session_state.base_url,
+                model=st.session_state.selected_model
             )
             st.success(f"已切换到模型: {selected_model}")
     else:
@@ -146,13 +161,38 @@ if user_input := st.chat_input("请输入你的问题..."):
             full_response = ""
             
             # 流式调用LLM
-            for chunk in st.session_state.llm.stream([HumanMessage(content=user_input)]):
-                full_response += chunk.content
-                # 实时更新（加光标动画）
-                msg_placeholder.markdown(full_response + "▌")
+            # for chunk in st.session_state.llm.stream([HumanMessage(content=user_input)]):
+            #     full_response += chunk.content
+            #     # 实时更新（加光标动画）
+            #     msg_placeholder.markdown(full_response + "▌")
+
+        
+            result = st.session_state.agent.invoke({
+                "messages": [
+                    {"role": "system", "content": "你是一个智能助理，如果用户询问中包含url，或者要求使用网络信息，才需要访问『get_url_web_content』"},
+                    {"role": "user", "content": user_input},
+                ]
+            })
+
+            print("模型结果", result)
+
+            # 直接打印 Markdown 格式的最终消息
+            full_response = result['messages'][-1].content
+            # 添加调试信息
+            response_metadata = result['messages'][-1].response_metadata
+            tool_calls = set()
+            # <class 'langchain_core.messages.ai.AIMessage'>
+            for item in result['messages']:
+                if type(item) == AIMessage:
+                    cur_tool_calls = item.tool_calls
+                    for i in cur_tool_calls:
+                        tool_calls.add(i['name'])
+
+            full_response += f"\n\n >模型:{response_metadata['model']}  时间:{response_metadata['created_at']}\n\n >工具:{json.dumps([i for i in tool_calls ])}"
             
             # 移除光标，显示最终回复
             msg_placeholder.markdown(full_response)
+
             
             # 3. 添加AI回复到历史
             st.session_state.messages.append(AIMessage(content=full_response))
