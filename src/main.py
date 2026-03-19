@@ -6,7 +6,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_ollama import ChatOllama
 
 
-from src.agents.smart_agent import agent,create_my_agent
+from agents.agent_smart import agent,create_my_agent
 import json
 
 # 加载环境变量（存放OpenAI API Key）
